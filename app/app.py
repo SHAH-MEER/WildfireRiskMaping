@@ -13,6 +13,7 @@ from pathlib import Path
 
 import gradio as gr
 import numpy as np
+import spaces
 import timm
 import torch
 import torch.nn as nn
@@ -32,8 +33,6 @@ IMG_SIZE = 224
 IMAGENET_MEAN = [0.485, 0.456, 0.406]
 IMAGENET_STD = [0.229, 0.224, 0.225]
 
-DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
 _transform = transforms.Compose([
     transforms.Resize((IMG_SIZE, IMG_SIZE)),
     transforms.ToTensor(),
@@ -46,14 +45,19 @@ def build_model(num_classes: int = 2) -> nn.Module:
 
 
 def load_model():
+    """
+    Loaded once on CPU at import time. ZeroGPU only attaches a GPU to the
+    process for the duration of a @spaces.GPU-decorated call, so the model is
+    moved to CUDA (if available) inside predict() on each call instead.
+    """
     if not MODEL_PATH.exists():
         raise FileNotFoundError(
             f"Model checkpoint not found at {MODEL_PATH}. "
             "Train on Colab (notebooks/train_colab.ipynb), run scripts/calibrate.py, "
             "then copy best_model.pt next to app.py."
         )
-    ckpt = torch.load(MODEL_PATH, map_location=DEVICE)
-    model = build_model().to(DEVICE)
+    ckpt = torch.load(MODEL_PATH, map_location="cpu")
+    model = build_model()
     model.load_state_dict(ckpt["model_state"])
     model.eval()
     class_to_idx = ckpt["class_to_idx"]
@@ -63,23 +67,26 @@ def load_model():
 
 MODEL, CLASS_TO_IDX, TEMPERATURE = load_model()
 WILDFIRE_IDX = CLASS_TO_IDX["wildfire"]
-TARGET_LAYERS = [MODEL.layer4[-1]]
 
 
+@spaces.GPU(duration=30)
 def predict(image: Image.Image):
     if image is None:
         return None, None
 
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model = MODEL.to(device)
+
     pil_img = image.convert("RGB").resize((IMG_SIZE, IMG_SIZE))
     rgb_float = np.array(pil_img).astype(np.float32) / 255.0
-    input_tensor = _transform(pil_img).unsqueeze(0).to(DEVICE)
+    input_tensor = _transform(pil_img).unsqueeze(0).to(device)
 
     with torch.no_grad():
-        logits = MODEL(input_tensor)
+        logits = model(input_tensor)
         calibrated_probs = F.softmax(logits / TEMPERATURE, dim=1)[0]
         risk_prob = calibrated_probs[WILDFIRE_IDX].item()
 
-    cam = GradCAM(model=MODEL, target_layers=TARGET_LAYERS)
+    cam = GradCAM(model=model, target_layers=[model.layer4[-1]])
     grayscale_cam = cam(input_tensor=input_tensor,
                          targets=[ClassifierOutputTarget(WILDFIRE_IDX)])[0]
     overlay = show_cam_on_image(rgb_float, grayscale_cam, use_rgb=True)
