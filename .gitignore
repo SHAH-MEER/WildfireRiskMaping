@@ -1,0 +1,30 @@
+# Project instructions (kept local per CLAUDE.md)
+CLAUDE.md
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Data (downloaded via Kaggle API, not versioned)
+data/
+
+# Model weights (large binaries)
+models/*.pt
+models/*.pth
+app/*.pt
+app/*.pth
+
+# Kaggle credentials
+kaggle.json
+.kaggle/
+
+# Outputs
+outputs/gradcam_samples/*.png
+outputs/calibration/*.png
+
+# OS / editor
+.DS_Store
+.vscode/
+*.log

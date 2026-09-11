@@ -1,0 +1,8 @@
+train/wildfire: 15750 images, 0 corrupted
+train/nowildfire: 14500 images, 0 corrupted
+valid/wildfire: 3480 images, 0 corrupted
+valid/nowildfire: 2820 images, 0 corrupted
+test/wildfire: 3480 images, 0 corrupted
+test/nowildfire: 2820 images, 0 corrupted
+
+VERIFICATION PASSED
