@@ -95,6 +95,9 @@ def predict(image: Image.Image):
     return label, overlay
 
 
+EXAMPLES_DIR = APP_DIR / "examples"
+EXAMPLES = sorted(str(p) for p in EXAMPLES_DIR.glob("*.jpg")) if EXAMPLES_DIR.exists() else []
+
 demo = gr.Interface(
     fn=predict,
     inputs=gr.Image(type="pil", label="Satellite image (350x350, Canadian terrain)"),
@@ -102,11 +105,14 @@ demo = gr.Interface(
         gr.Label(label="Calibrated risk probability"),
         gr.Image(label="Grad-CAM overlay (highlights regions driving the prediction)"),
     ],
+    examples=EXAMPLES or None,
+    examples_per_page=6,
     title="Wildfire Risk Mapping",
     description=(
         "Upload a satellite image tile to get a temperature-calibrated wildfire risk "
         "probability and a Grad-CAM overlay showing which regions drove the prediction. "
-        "Trained on Canadian terrain only — see the README for limitations."
+        "No image handy? Click one of the examples below to try it instantly. "
+        "Trained on Canadian terrain only, see the README for limitations."
     ),
 )
 
